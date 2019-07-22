@@ -2,6 +2,9 @@ const express = require('express')
 const User = require('../models/user')
 const router = new express.Router()
 const auth = require('../middleware/auth')
+const multer = require('multer')
+const sharp = require('sharp')
+const {sendWelcomeEmail,sendCancelEmail} = require('../email/account')
 
 
 //---------create user------------
@@ -9,6 +12,7 @@ router.post('/user', async (req,res)=>{
     const user = new User(req.body)
     try{
      await user.save()
+     sendWelcomeEmail(user.email,user.name)
      const token = await user.getAuthToken()
      res.status(201).send({user ,token})
     }catch(e){
@@ -81,7 +85,7 @@ router.delete('/user/me',auth, async (req,res) =>{
         // if(!user){
         //     return res.status(404).send('wrong query')
         // }
-
+        sendCancelEmail(req.user.email,req.user.name)
         await req.user.remove()
         res.send(req.user)
     }catch(e){
@@ -115,6 +119,54 @@ router.patch('/user/me',auth, async (req,res) =>{
         res.status(500).send(e)
     }
 
+})
+
+const upload = multer({
+    // dest : 'avatar',
+    limits : {
+        fileSize : 4000000
+    },
+    fileFilter(req,file,cb){
+        if(!file.originalname.endsWith('.jpg')){ //can use regular expressin (regex) here, if we are using multiple files here
+            cb(new Error('please upload only image'))
+        }
+        cb(undefined,true)
+    }
+})
+// const middlewareError = (req,res,next)=>{
+//     throw new Error('something something')
+// } 
+router.post('/user/me/avatar',auth, upload.single('avatar')
+, async (req,res)=>{
+    
+    const buffer = await sharp(req.file.buffer).resize({width:250,height:250}).png().toBuffer()
+    req.user.image = buffer
+    await req.user.save()
+    res.send()
+   
+},(error,req,res,next)=>{
+    res.status(400).send({error:error.message})
+})
+
+router.delete('/user/me/avatar/remove',auth,async (req,res)=>{
+    req.user.image = undefined
+    await req.user.save()
+    res.send()
+},(error,req,res)=>{
+    res.status(500).send({error:error.message})
+})
+
+router.get('/user/:id/avatar',async (req,res)=>{
+    try{
+        const user = await User.findById(req.params.id)
+        if(!(user||user.image)){
+            throw new Error('no user or image')
+        }
+        res.set('Content-Type','image/jpg')
+        res.send(user.image)
+    }catch(e){
+        res.status(400).send(e)
+    }
 })
 
 module.exports = router

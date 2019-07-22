@@ -29,6 +29,9 @@ const userSchema = new mongoose.Schema({
             required : true
         }
     }],
+    image : {
+        type : Buffer
+    },
     password : {
         type : String,
         required : true,
@@ -56,13 +59,14 @@ userSchema.methods.toJSON = function(){
     const object = user.toObject()
     delete object.password
     delete object.tokens
+    delete object.image
     return object
 }
 
 userSchema.methods.getAuthToken = async function(){
     const user = this
 
-    const token = jwt.sign({_id : user._id.toString()},'thisistotestjwt')
+    const token = jwt.sign({_id : user._id.toString()},process.env.JWT_SECRET)
     user.tokens = await user.tokens.concat({token})
     await user.save()
 

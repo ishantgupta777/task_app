@@ -1,9 +1,9 @@
 const express = require('express')
 require('./db/mongoose')
-const userRouter = require('./db/routers/user')
-const taskRouter = require('./db/routers/task')
+const userRouter = require('./routers/user')
+const taskRouter = require('./routers/task')
 const app = express()
-const port = process.env.PORT || 3000
+const port = process.env.PORT 
 
 app.listen(port,()=>console.log(`listening on port ${port}`))
 
